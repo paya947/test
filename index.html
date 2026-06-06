@@ -1,0 +1,370 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!-- saved from url=(0042)http://192.168.4.254/login.html?_t=8417271 -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><style>body {transition: opacity ease-in 0.2s; } 
+body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relative; } 
+</style>
+
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7">
+<title>LTE Wireless Router</title>
+<link rel="stylesheet" type="text/css" href="./LTE Wireless Router_files/main.css">
+<style type="text/css">
+#device_check {
+	position: absolute;
+	left: 20px;
+	top: 20px;
+}
+#device_check td {
+	white-space: nowrap;
+}
+
+.txt_check{height:40px; width:120px;font-size:32px;}
+.btn_check{height:40px; width:200px;font-size:20px;}
+.lbl_check{font-size: 24px;}
+#check_msg{font-size: 24px;}
+#check_result{font-size: 64px;}
+</style>
+<script type="text/javascript" src="./LTE Wireless Router_files/json2.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/jquery-1.7.2.min.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/jquery.form.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/jquery.validate.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/underscore-min.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/language_list.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/language.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/en.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/helper.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/main.js.download"></script>
+<script type="text/javascript" src="./LTE Wireless Router_files/sha256.js.download"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+	var salt = '';
+	var $main = $('#main').hide();
+	var device_version_info_data = null;
+
+	function refresh_language()
+	{
+		var $languageSelect = $('#languageSelect');
+    	if (!Page.isSupported(ItemUnsupportedTable.DISPLAY_SMS) || Page.isItemHide(ItemHideTable.SMS)) {
+			$('#smsInfo').hide();
+		}
+		if (Page.isItemHide(ItemHideTable.LANGUAGE)) {
+			$languageSelect.detach();
+			$('.tr_language').detach();
+		} else {
+			$('.tr_language').show();
+			$languageSelect.html(Page.getLanguageList(Page.language)).change(function() {
+				Page.changeLanguage($languageSelect);
+			});
+		}
+	}
+	
+	function init() {
+		Page.render('#login_container', '#login_template', DOC);
+		Page.render('#footer', '#footer_template', DOC);
+		
+	    Page.initPage(true);
+	    $(window).resize(function(){
+		   Page.initPage(true);
+	    });
+	    
+	    /*Page.postJSON({
+            returnHtml: true,
+	    	json: {
+            	cmd: RequestCmd.GET_DHTML,
+                method: JSONMethod.POST,
+                subcmd: 0
+            },
+            success: function(data) {
+            	if (data != '<span></span>') {
+                	$('#offical_site_box').show().html(data);
+            	}
+            }
+	    });*/
+    	
+	    $main.show();
+	
+	    var $username = $('#username').focus(),
+	    	$passwd = $('#passwd'),
+	    	$btnLogin = $('#btnLogin');
+	    
+
+        var loginText = $btnLogin.val();
+	    $btnLogin.click(function(){
+	        var username = $username.val(), passwd = $passwd.val();
+	        if(username == "") {
+	            AlertUtil.alertMsg(CHECK.required.username);
+	            $username.focus();
+	            return false;
+	        }
+	
+	        if(passwd == "") {
+	            AlertUtil.alertMsg(CHECK.required.passwd);
+	            $passwd.focus();
+	
+	            return false;
+	        }
+	
+	        $btnLogin.disable();
+	        var loginSuccess = false;
+	        Page.postJSON({
+	            json: {
+	            	cmd: RequestCmd.LOGIN,
+	                method: JSONMethod.POST,
+	                sessionId: getSessionId(),
+	                username: username,
+	                passwd: sha256_digest(salt + Md5.md5(passwd))
+	            },
+	            success: function(data) {
+                    loginSuccess = data.success;
+	                var option = { expireHours: 1, path: "/", domain: location.hostname };
+	                // CookieUtil.setCookie(option);
+	                sessionStorage['sessionId'] = data.sessionId
+	            	location.href = Page.getUrl("index.html");
+	            },
+	            fail: function(data) {
+		            var msg = data.message;
+		            if (msg.startsWith('remain:')) {
+		            	loginSuccess = true;
+				        AlertUtil.alertMsg(PROMPT.status.loginFailTimesOut);
+				        
+		            	var remain = parseInt(msg.substring(7), 10);
+		            	function loop() {
+				            remain--;
+			            	if (remain > 0) {
+				            	$btnLogin.val(String.format('{0} ({1}s)', loginText, remain)).disable();
+				            	setTimeout(loop, 1000);
+				            } else {
+				            	$btnLogin.val(loginText).enable();
+					        }
+			            }
+			            loop();
+			        } else {
+				        AlertUtil.alertMsg(msg);
+				    }
+		        },
+	            complete: function() {
+                    if (!loginSuccess) {
+                        AlertUtil.alertMsg(CHECK.required.passwdError);
+                        $btnLogin.enable();
+                    }
+                }
+	        });
+	    });
+	
+	    $username.keydown(function(e) {
+	        if(e.which == 13) {
+	        	$passwd.focus();
+	        }
+	    });
+	
+	    $passwd.keydown(function(e) {
+	        if(e.which == 13) {
+	            if (!$btnLogin.attr("disabled")) {
+	            	$btnLogin.click();
+	            }
+	        }
+	    });
+	
+	    function getSessionId() {
+	        return Md5.md5(Math.random().toString()) + Md5.md5(Math.random().toString());
+	    }
+	
+	    var option = {
+		    expireHours : -1,
+		    path : '/',
+		    domain : location.hostname
+		};
+		// CookieUtil.deleteCookie(option);
+		sessionStorage['sessionId'] = "";
+	 	// 获取模块版本信息
+	    Page.postJSON({
+	        json: { cmd: RequestCmd.DEVICE_VERSION_INFO, isLogin: true },
+	        success: function(data) {
+				device_version_info_data=data;
+	        	Page.module = data.module;
+	        	Page.modelVersion = data.modversion;
+            	Page.setSupported(ConvertUtil.parseHex(data.supported || 0));
+            	Page.setUnsupported(ConvertUtil.parseHex(data.unsupported || 0));
+	        	Page.enableWiFi = (data.enableWiFi == "true");
+	
+	        	var build = data.build;
+	        	if (build.length >= 10) {
+	            	var version = ' Version: ' + build.substring(2, 10).replace(/\-/g, '.');
+	            	var $footer = $('#spanFooter');
+	            	if ($footer.text().indexOf('Version:') < 0) {
+	            		var copyright = (data.copyright || '').replaceQuote();
+	            		if (copyright == 'NULL') copyright = '';
+	            		$footer.text(copyright + $footer.text() + version);
+	            	}
+	        	}
+	        	if (Page.enableWiFi && data.nartState.trim() == "0" && Page.isSupported(ItemUnsupportedTable.NOT_SUPPORT_CALIBRATION_STATUS, false)) {
+	        		$('#login').hide();
+	        		$('#art_check').show().load('artchecking.html');
+	        	}
+				
+	        	Page.setItemHide(ConvertUtil.parseHex(data.itemHide));
+	        	
+	        },
+	        complete: function() {
+	    	 	getOpenInfo();
+	            // 获取系统状态
+	            StatusUtil.getSysStatus( refresh_language );
+
+				if(
+					device_version_info_data
+					&& (device_version_info_data.reboot == "success")
+					)
+				{
+					location.reload();
+				}
+	        }
+	    });
+	}
+	Page.postJSON({
+		json: { cmd: RequestCmd.CREATE_RANDOM_SALT },
+		success: function(data) {
+			salt = data.message;
+		}
+	});
+ 	Page.postJSON({
+		json: { cmd: RequestCmd.INIT_PAGE },
+		success: function(data) {
+			Page.languageList = ConvertUtil.parseHex(FormatUtil.formatValue(data.languageList) || "FFFE");
+			var language = data.language.toUpperCase();
+			if (Page.requireChangeLang(language)) {
+				Page.language = language;
+				Page.postJSON({
+		            json: {
+		            	cmd: RequestCmd.CHANGE_LANGUAGE,
+		                method: JSONMethod.POST,
+		                sessionId: "",
+		                languageSelect: language
+		            },
+		            success: function(data) {
+						$("script[src^='js/language/']").remove();
+						$.getScript('js/language/' + language.toLowerCase() + '.js', init);
+		            }
+		        });
+			} else {
+				init();
+			}
+		}
+	});
+});
+</script>
+<style>:is([id*='google_ads_iframe'],[id*='taboola-'],.taboolaHeight,.taboola-placeholder,#top-ad,#credential_picker_container,#credentials-picker-container,#credential_picker_iframe,[id*='google-one-tap-iframe'],#google-one-tap-popup-container,.google-one-tap__module,.google-one-tap-modal-div,#amp_floatingAdDiv,#ez-content-blocker-container) {display:none!important;min-height:0!important;height:0!important;}</style></head>
+
+<body>
+<div id="header" style="width: 1280px; background-image: url(&quot;/images/banner_zotel.gif&quot;); background-repeat: no-repeat;">
+    <div id="closeInternet"></div>
+    <div id="siginfo" style="width: 450px;">
+        <table cellpadding="0" cellspacing="4">
+            <tbody><tr>
+                <td id="netInfo"><div class="singal singal5" title="Signal Strength:Very Strong">4G</div></td>
+                <td id="simInfo"><div class="normal" title="SIM/USIM exists">SIM</div></td>
+                <td id="wifiInfo" style="display: none;"></td>
+                <td id="lteUsbInfo" style="display: none;"></td>
+                <td id="lan1" style="display:none;"></td>
+                <td id="lan2" style="display:none;"></td>
+                <td id="lan3" style="display:none;"></td>
+                <td id="lan4" style="display:none;"></td>
+                <td id="wan1" style="display:none;"></td>
+                <td id="smsInfo" style="display: none;"><div class="normal" title="Message">Message</div></td>
+            </tr>
+        </tbody></table>
+    </div>
+    <div id="timeinfo"><span class="connect_status">Connected</span>&nbsp;2026-06-06 12:29</div>
+    <div id="header_right"></div>
+</div>
+<div id="main" style="display: block; height: 791px;">
+<div id="left" style="height: 791px;">
+<div id="left_t"></div>
+<div id="left_m" style="height: 761px;">
+<div id="login_container">
+<table>
+	<tbody><tr class="tr_login tr_language" style="">
+		<th>Language:</th>
+	</tr>
+	<tr class="tr_login tr_language" style="">
+		<td><select id="languageSelect" name="languageSelect" class="ddl"><option value="CN">中文</option><option value="EN" selected="selected">English</option><option value="ES">Español</option><option value="PT">Português</option><option value="VI">Tiếng Việt</option><option value="FA">فارسی</option><option value="RU">русский</option><option value="FR">Français</option></select></td>
+	</tr>
+
+	<tr class="tr_login">
+		<th>Username:</th>
+	</tr>
+	<tr class="tr_login">
+		<td><input type="text" id="username" name="username" class="txt" maxlength="20"></td>
+	</tr>
+
+	<tr class="tr_login">
+		<th>Password:</th>
+	</tr>
+	<tr class="tr_login">
+		<td><input type="password" id="passwd" name="passwd" class="txt" maxlength="20"></td>
+	</tr>
+	<tr class="tr_login">
+		<td style="padding-top:5px"><input type="button" id="btnLogin" class="btn" value="Login"></td>
+	</tr>
+</tbody></table>
+</div>
+<div id="offical_site_box" style="display:none;"></div>
+<div id="simple_wifi_box" style="display:none;"></div>
+</div>
+<div id="left_b"></div>
+</div>
+
+<div id="right" style="overflow: hidden; padding-top: 15px; width: 1079px; height: 776px;">
+<div id="device_check" style="overflow: hidden auto; left: 20px; width: 1039px; height: 771px;">
+
+<table cellspacing="0" cellpadding="0">
+<tbody><tr><td>
+<div id="check_box_left">
+<div id="lte_info" class="check_info" style="width: 499.5px;"><div class="detail">Basic LTE Information</div><table class="detail" cellspacing="0"><tbody><tr class=""><th>IMSI:</th><td>432459999991703</td></tr><tr class="odd"><th>Physical Cell ID:</th><td>411</td></tr><tr class="even"><th>SINR:</th><td>10&nbsp;dB</td></tr><tr class="odd"><th>RSRP:</th><td>-90&nbsp;dBm</td></tr><tr class="even"><th>RSSI:</th><td>-48&nbsp;dBm</td></tr><tr class="odd"><th>TX Power:</th><td>-9&nbsp;dBm</td></tr></tbody></table></div>
+<div id="lte_info_advanced" class="check_info" style="width: 499.5px;"><div class="detail">Advanced LTE Information</div><table class="detail" cellspacing="0"><tbody><tr class=""><th>EARFCN:</th><td>42690</td></tr><tr class="odd"><th>RSRQ:</th><td>-9&nbsp;dB</td></tr><tr class="even"><th>Global Cell ID:</th><td>A7C0B</td></tr><tr class="odd"><th>IMEI:</th><td>867745042488272</td></tr><tr class="even"><th>Serial Number:</th><td>P19H867745042488272</td></tr></tbody></table></div>
+<div id="router_info2" class="check_info" style="width: 499.5px;"></div>
+<div id="wlan_info2" class="check_info" style="width: 499.5px;"></div>
+</div>
+<div id="check_box_right">
+<div id="router_info" class="check_info" style="width: 509.5px;"><div class="detail">Router Information</div><table class="detail" cellspacing="0"><tbody><tr class=""><th>Running Time:</th><td> 18 day(s), 23hour(s)38min(s)</td></tr><tr class="odd"><th>Firmware Version:</th><td>3.2.27</td></tr></tbody></table></div>
+<div id="wlan_info" class="check_info" style="width: 509.5px;"></div>
+<div id="wan_info" class="check_info" style="width: 509.5px;"><div class="detail">WAN</div><table class="detail" cellspacing="0"><tbody><tr class=""><th>IP:</th><td>45.144.125.138</td></tr><tr class="odd"><th>Primary DNS:</th><td>172.20.11.11</td></tr><tr class="even"><th>Secondary DNS:</th><td>172.20.11.12</td></tr><tr class="odd"><th>IPv6:</th><td>-</td></tr><tr class="even"><th>IPv6 Gateway:</th><td>-</td></tr><tr class="odd"><th>Primary IPv6 DNS:</th><td>&nbsp;</td></tr><tr class="even"><th>Secondary IPv6 DNS:</th><td>&nbsp;</td></tr></tbody></table></div>
+</div>
+<span style="clear:both"></span>
+</td></tr>
+<tr><td>
+<div id="client_info"></div><br>
+<div id="client_info_hidden" style="display:none;">
+
+
+
+<div id="client_list" class="detail_box">
+    <span id="loadingPrompt" class="cmt" style="text-align: center;font-size: 20px">Loading...</span>
+</div>
+</div>
+</td></tr></tbody></table>
+
+</div>
+
+<div id="art_check" style="display:none;"></div>
+</div>
+
+</div>
+
+<div id="footer" style="width: 1280px;">
+<span id="spanFooter">Copyright © 2002-2023 All Rights Reserved. Version: 23.10.09</span>
+</div>
+
+<div id="mask"></div>
+<div id="progress_box">
+    <div id="progress_info"></div>
+    <div id="progress_bar">
+        <div id="progress_status"></div>
+    </div>
+</div>
+<div id="edit_box"></div>
+
+
+
+<veepn-lock-screen><template shadowrootmode="open"><style>html{box-sizing:border-box;text-size-adjust:100%;word-break:normal;tab-size:4}*,:before,:after{background-repeat:no-repeat;box-sizing:border-box}:before,:after{text-decoration:inherit;vertical-align:inherit}*{padding:0;margin:0}hr{overflow:visible;height:0;color:inherit;border:0;border-top:1px solid}details,main{display:block}summary{display:list-item}small{font-size:80%}[hidden]{display:none!important}abbr[title]{border-bottom:none;text-decoration:underline;text-decoration:underline dotted}a{background-color:transparent}a:active,a:hover{outline-width:0}code,kbd,pre,samp{font-family:monospace}pre{font-size:1em}b,strong{font-weight:bolder}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{border-color:inherit;text-indent:0}iframe{border-style:none}input{border-radius:0}[type=number]::-webkit-inner-spin-button,[type=number]::-webkit-outer-spin-button{height:auto}[type=search]{appearance:textfield;outline-offset:-2px}[type=search]::-webkit-search-decoration{appearance:none}textarea{overflow:auto;resize:vertical}button,input,optgroup,select,textarea{font:inherit;color:inherit}optgroup{font-weight:700}button{overflow:visible}button,select{text-transform:none}button,[type=button],[type=reset],[type=submit],[role=button]{cursor:pointer}button::-moz-focus-inner,[type=button]::-moz-focus-inner,[type=reset]::-moz-focus-inner,[type=submit]::-moz-focus-inner{border-style:none;padding:0}button,html [type=button],[type=reset],[type=submit]{appearance:auto}button,input,select,textarea{background-color:transparent;border-style:none}button:-moz-focusring,[type=button]::-moz-focus-inner,[type=reset]::-moz-focus-inner,[type=submit]::-moz-focus-inner{outline:1px dotted ButtonText}select{appearance:none}a:focus,button:focus,input:focus,select:focus,textarea:focus{outline-width:0}select::-ms-expand{display:none}select::-ms-value{color:currentcolor}legend{border:0;color:inherit;display:table;white-space:normal;max-width:100%}::-webkit-file-upload-button{appearance:auto;color:inherit;font:inherit}[disabled]{cursor:default}img{border-style:none}progress{vertical-align:baseline}[aria-busy=true]{cursor:progress}[aria-controls]{cursor:pointer}[aria-disabled=true]{cursor:default}ul,ol{list-style-type:none}figure{margin:0}@keyframes slide-in{0%{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}.gradient-blue{background:radial-gradient(106.41% 128.47% at 50.15% 128.47%,#23abff,#3066ff)}.gradient-green{background:radial-gradient(92.26% 118.88% at 50.15% .13%,#00c3c3,#00aab3)}.gradient-purple{background:radial-gradient(165.12% 115.56% at 50.15% .13%,#a15aff,#00a0eb)}.bg-blue{background-color:#f2f5ff}.bg-purple{background-color:#f7f0ff}.bg-green{background-color:#ebffed}.lock-screen{font-family:FigtreeVF,sans-serif;letter-spacing:normal;position:fixed;z-index:2147483638;right:24px;bottom:24px;width:327px;border-radius:24px;overflow:hidden;box-shadow:0 24px 32px #00000014;animation:slide-in .3s ease-in-out forwards}.lock-screen__content{position:relative;padding:24px 24px 64px}.lock-screen__close{position:absolute;top:16px;right:16px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;opacity:.5}.lock-screen__label{height:26px;width:fit-content;border-radius:50px;background-color:#fff3;padding-inline:16px;display:flex;align-items:center;justify-content:center;gap:8px;color:#fff;font-size:12px;line-height:18px;margin:-8px auto 16px}.lock-screen__title{color:#fff;text-align:center;font-size:20px;line-height:28px;font-weight:600;margin-bottom:8px}.lock-screen__description{color:#f5f6f7;text-align:center;font-size:14px;line-height:20px}.lock-screen__description b{font-weight:600}.lock-screen__card{position:relative;z-index:1;margin-top:-44px;background-color:#fff;border-radius:24px;padding:32px 20px 20px}.lock-screen__inner{margin-bottom:24px}.lock-screen__submit{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:16px;height:40px;width:100%;border-radius:12px;padding-inline:16px;background-color:#f70;color:#fff;margin-bottom:16px}.lock-screen__skip{display:flex;align-items:center;justify-content:center;font-size:14px;line-height:20px;color:#82829c;margin-inline:auto}.price-card{border:1px solid #f2f2fc;background:linear-gradient(254.14deg,#fafbff .04%,#f5f8ff 100.04%);border-radius:24px;padding:24px 28px}.price-card__label{color:#4a5764;text-align:center;font-size:14px;line-height:20px;text-transform:uppercase;margin-bottom:16px}.price-card__price{display:flex;justify-content:center;align-items:flex-start;column-gap:2px;margin-bottom:12px}.price-card__currency{color:#515478;font-size:18px;line-height:28px}.price-card__number{color:#14142a;text-align:center;font-size:64px;line-height:54px}.price-card__wrap{display:flex;flex-direction:column}.price-card__decimal{color:#515478;font-size:18px;line-height:28px;font-weight:600}.price-card__period{color:#515478;font-size:14px;line-height:20px;margin-top:-6px}.price-card__discount{position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:12px}.price-card__discount-divider{position:absolute;z-index:0;top:50%;left:0;width:100%;height:1px;background-color:#dbe2f9;transform:translateY(-50%)}.price-card__discount-icon{position:absolute;z-index:1;top:50%;left:50%;transform:translate(-50%,-50%)}.price-card__discount-text{position:relative;z-index:2;color:#fff;font-size:12px;font-weight:600;line-height:18px}.price-card__features{display:flex;align-items:center;justify-content:center;column-gap:16px}.price-card__feature{color:#222e3a;font-size:14px;line-height:20px;display:flex;align-items:center;gap:6px}.price-card__feature:before{content:"";display:block;width:4px;height:4px;background-color:#20df9e;border-radius:50%;flex-shrink:0}.features-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.features-list__item{display:flex;flex-direction:column;align-items:center;gap:6px}.features-list__icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center}.features-list__text{color:#293a53;text-align:center;font-size:16px;line-height:24px;letter-spacing:-.1px}</style></template><style>@font-face{font-family:FigtreeVF;src:url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2 supports variations"),url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2-variations");font-weight:100 1000;font-display:swap}</style></veepn-lock-screen></body></html>
